@@ -7,7 +7,7 @@ import { initialCCTVs, initialTickets } from '@/lib/mock-data';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Wrench, CheckCircle, Image as ImageIcon, Video, Power, AlertTriangle, Clock, Activity } from 'lucide-react';
+import { Wrench, CheckCircle, Image as ImageIcon, Video, Power, AlertTriangle, Clock, Activity, CheckCircle2 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const [cctvs] = useState<CCTV[]>(initialCCTVs);
@@ -35,12 +35,13 @@ export default function AdminDashboardPage() {
     );
   };
 
-  // Perhitungan Ringkas Angka Indikator
+  // Perhitungan Ringkas Angka Indikator Utama
   const totalKeseluruhan = cctvs.length;
   const totalHidup = cctvs.filter((c) => c.status === 'normal').length;
   const totalMati = cctvs.filter((c) => c.status !== 'normal').length;
   const butuhPenanganan = tickets.filter((t) => t.status === 'pending').length;
   const progresPerbaikan = tickets.filter((t) => t.status === 'in_progress').length;
+  const totalSelesaiDiperbaiki = tickets.filter((t) => t.status === 'resolved').length;
 
   return (
     <div className="space-y-6">
@@ -51,17 +52,17 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
-      {/* CARD STATISTIK RINGKAS INDIKATOR UTAMA (5 COLUMN GRID) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* CARD STATISTIK RINGKAS INDIKATOR UTAMA (6 COLUMN GRID) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Total Keseluruhan */}
         <Card className="bg-white shadow-sm border-slate-200">
-          <CardHeader className="pb-1 pt-4 px-4">
+          <CardHeader className="pb-1 pt-4 px-3">
             <CardTitle className="text-xs font-medium text-slate-500 flex items-center justify-between">
               <span>Total Unit</span>
               <Video className="w-4 h-4 text-slate-400" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-3 pb-4">
             <div className="text-2xl font-bold text-slate-900">{totalKeseluruhan}</div>
             <p className="text-[10px] text-slate-400 mt-0.5">Semua Titik CCTV</p>
           </CardContent>
@@ -69,13 +70,13 @@ export default function AdminDashboardPage() {
 
         {/* Kondisi Hidup */}
         <Card className="bg-white shadow-sm border-slate-200 border-t-2 border-t-green-500">
-          <CardHeader className="pb-1 pt-4 px-4">
+          <CardHeader className="pb-1 pt-4 px-3">
             <CardTitle className="text-xs font-medium text-slate-500 flex items-center justify-between">
               <span>Kondisi Hidup</span>
               <Power className="w-4 h-4 text-green-500" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-3 pb-4">
             <div className="text-2xl font-bold text-green-600">{totalHidup}</div>
             <p className="text-[10px] text-slate-400 mt-0.5">Normal / Operasional</p>
           </CardContent>
@@ -83,27 +84,27 @@ export default function AdminDashboardPage() {
 
         {/* Kondisi Mati */}
         <Card className="bg-white shadow-sm border-slate-200 border-t-2 border-t-red-500">
-          <CardHeader className="pb-1 pt-4 px-4">
+          <CardHeader className="pb-1 pt-4 px-3">
             <CardTitle className="text-xs font-medium text-slate-500 flex items-center justify-between">
               <span>Kondisi Mati</span>
               <AlertTriangle className="w-4 h-4 text-red-500" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-3 pb-4">
             <div className="text-2xl font-bold text-red-600">{totalMati}</div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Rusak / Offline / Matot</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Rusak / Offline</p>
           </CardContent>
         </Card>
 
         {/* Butuh Penanganan */}
         <Card className="bg-white shadow-sm border-slate-200 border-t-2 border-t-amber-500">
-          <CardHeader className="pb-1 pt-4 px-4">
+          <CardHeader className="pb-1 pt-4 px-3">
             <CardTitle className="text-xs font-medium text-slate-500 flex items-center justify-between">
               <span>Penanganan</span>
               <Clock className="w-4 h-4 text-amber-500" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-3 pb-4">
             <div className="text-2xl font-bold text-amber-600">{butuhPenanganan}</div>
             <p className="text-[10px] text-slate-400 mt-0.5">Laporan Baru (Pending)</p>
           </CardContent>
@@ -111,15 +112,29 @@ export default function AdminDashboardPage() {
 
         {/* Progres Perbaikan */}
         <Card className="bg-white shadow-sm border-slate-200 border-t-2 border-t-purple-500">
-          <CardHeader className="pb-1 pt-4 px-4">
+          <CardHeader className="pb-1 pt-4 px-3">
             <CardTitle className="text-xs font-medium text-slate-500 flex items-center justify-between">
               <span>Progres</span>
               <Activity className="w-4 h-4 text-purple-500" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-3 pb-4">
             <div className="text-2xl font-bold text-purple-600">{progresPerbaikan}</div>
             <p className="text-[10px] text-slate-400 mt-0.5">Dalam Perbaikan IT</p>
+          </CardContent>
+        </Card>
+
+        {/* Total Perbaikan Selesai */}
+        <Card className="bg-white shadow-sm border-slate-200 border-t-2 border-t-blue-500">
+          <CardHeader className="pb-1 pt-4 px-3">
+            <CardTitle className="text-xs font-medium text-slate-500 flex items-center justify-between">
+              <span>Total Perbaikan</span>
+              <CheckCircle2 className="w-4 h-4 text-blue-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 pb-4">
+            <div className="text-2xl font-bold text-blue-600">{totalSelesaiDiperbaiki}</div>
+            <p className="text-[10px] text-slate-400 mt-0.5">Selesai Ditangani</p>
           </CardContent>
         </Card>
       </div>

@@ -20,9 +20,8 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ username, onLogout, onOpenMobileMenu }: AdminHeaderProps) {
   return (
-    <header className="bg-slate-900 text-white py-3 px-4 md:px-8 flex justify-between items-center shadow-md sticky top-0 z-40 border-b border-slate-800">
+    <header className="bg-slate-900 text-white py-3 px-4 md:px-8 flex justify-between items-center shadow-md sticky top-0 z-40 border-b border-slate-800 print:hidden">
       <div className="flex items-center gap-3">
-        {/* Tombol Hamburger Menu (Hanya Muncul di Layar Mobile) */}
         <Button
           variant="ghost"
           size="icon"
@@ -39,7 +38,6 @@ export default function AdminHeader({ username, onLogout, onOpenMobileMenu }: Ad
         </div>
       </div>
 
-      {/* Profile Avatar Trigger di Pojok Kanan Atas */}
       <DropdownMenu>
         <DropdownMenuTrigger className="outline-none hover:opacity-90 transition p-1 rounded-full focus:ring-2 focus:ring-purple-400">
           <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold shadow-md">
@@ -51,7 +49,6 @@ export default function AdminHeader({ username, onLogout, onOpenMobileMenu }: Ad
           align="end"
           className="w-72 mt-2 bg-white text-slate-800 shadow-2xl border border-slate-100 rounded-xl p-4 space-y-3"
         >
-          {/* Header Info User di dalam Dropdown */}
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center shrink-0">
               <User className="w-7 h-7" />
@@ -71,7 +68,6 @@ export default function AdminHeader({ username, onLogout, onOpenMobileMenu }: Ad
 
           <DropdownMenuSeparator className="bg-slate-100 my-2" />
 
-          {/* Tombol Logout */}
           <DropdownMenuItem
             onClick={onLogout}
             className="cursor-pointer text-slate-700 hover:text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-600 rounded-lg px-3 py-2.5 text-sm font-semibold flex items-center gap-2 transition"

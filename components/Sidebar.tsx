@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Video, FileCheck, Shield } from 'lucide-react';
+import { LayoutDashboard, Video, FileCheck, Users, Shield } from 'lucide-react';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -24,6 +24,11 @@ export default function Sidebar({ onCloseMobile }: SidebarProps) {
       icon: Video,
     },
     {
+      label: 'Kelola User / Akun',
+      href: '/admin/users',
+      icon: Users,
+    },
+    {
       label: 'Audit & Tarik Report',
       href: '/admin/reports',
       icon: FileCheck,
@@ -32,13 +37,11 @@ export default function Sidebar({ onCloseMobile }: SidebarProps) {
 
   return (
     <div className="w-64 bg-slate-900 text-slate-300 h-full flex flex-col p-4 border-r border-slate-800">
-      {/* Brand Header */}
       <div className="flex items-center gap-2 px-2 text-white font-bold text-lg border-b border-slate-800 pb-4 mb-6">
         <Shield className="h-6 w-6 text-purple-400" />
         <span>Hotel CCTV Admin</span>
       </div>
 
-      {/* Menu Navigasi Utama */}
       <nav className="space-y-1">
         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
           Menu Utama
@@ -50,7 +53,7 @@ export default function Sidebar({ onCloseMobile }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              onClick={onCloseMobile} // Otomatis menutup drawer saat menu diklik di mobile
+              onClick={onCloseMobile}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition ${
                 isActive
                   ? 'bg-purple-600 text-white shadow-md'

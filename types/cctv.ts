@@ -8,12 +8,15 @@ export interface CCTV {
   id: string;
   code: string;
   location: string;
-  zone: string;
+  cameraType: string; // Dome, Bullet, PTZ, Panoramic, dll.
   ipAddress: string;
+  zone: string;
   status: CCTVStatus;
+  damageNotes?: string; // Keterangan yang rusak
+  followUpPlan?: string; // Rencana tindak lanjut
+  documentationUrl?: string; // Status / Link foto dokumentasi
   lastChecked: string;
 }
-
 export interface TicketReport {
   id: string;
   cctvId: string;
@@ -27,4 +30,15 @@ export interface TicketReport {
   resolvedAt?: string;
   actionTaken?: string;
   photoUrl?: string;
+}
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  role: Role;
+  department: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
 }

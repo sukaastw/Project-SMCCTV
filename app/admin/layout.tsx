@@ -24,28 +24,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
-      {/* 1. Sidebar Desktop (Hanya muncul di Layar Sedang & Besar: md:block) */}
-      <aside className="hidden md:block w-64 fixed left-0 top-0 bottom-0 z-50">
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row print:bg-white print:block">
+      {/* 1. Sidebar Desktop (Disembunyikan saat mode cetak) */}
+      <aside className="hidden md:block w-64 fixed left-0 top-0 bottom-0 z-50 print:hidden">
         <Sidebar />
       </aside>
 
-      {/* 2. Sidebar Mobile Drawer (Hanya terbuka ketika Tombol Hamburger diklik di layar kecil) */}
+      {/* 2. Sidebar Mobile Drawer (Disembunyikan saat mode cetak) */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <SheetContent side="left" className="p-0 w-64 bg-slate-900 border-r border-slate-800">
+        <SheetContent side="left" className="p-0 w-64 bg-slate-900 border-r border-slate-800 print:hidden">
           <Sidebar onCloseMobile={() => setIsMobileMenuOpen(false)} />
         </SheetContent>
       </Sheet>
 
-      {/* 3. Area Konten Utama (Berikan margin left md:ml-64 agar sejajar di layar besar) */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen w-full">
+      {/* 3. Area Konten Utama (Margin dikosongkan md:ml-0 saat diprint) */}
+      <div className="flex-1 md:ml-64 print:ml-0 flex flex-col min-h-screen w-full">
         <AdminHeader
           username={username}
           onLogout={handleLogout}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 print:p-0">
           {children}
         </main>
       </div>

@@ -128,3 +128,24 @@
     @apply font-sans;
   }
 }
+
+/* Tambahkan di baris paling bawah app/globals.css */
+
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  /* Memastikan elemen card melengkung dihilangkan total border & shadow-nya */
+  .print\:border-none {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .print\:rounded-none {
+    border-radius: 0 !important;
+  }
+}
