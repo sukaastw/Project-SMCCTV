@@ -1,82 +1,106 @@
 // components/AdminHeader.tsx
 'use client';
 
-import { Shield, User, LogOut, Menu } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
+import { Menu, Bell, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface AdminHeaderProps {
-  username: string;
-  onLogout: () => void;
+  username?: string;
+  onLogout?: () => void;
   onOpenMobileMenu?: () => void;
+  onMenuClick?: () => void;
 }
 
-export default function AdminHeader({ username, onLogout, onOpenMobileMenu }: AdminHeaderProps) {
+export function AdminHeader({
+  username,
+  onLogout,
+  onOpenMobileMenu,
+  onMenuClick,
+}: AdminHeaderProps) {
+  const [adminName, setAdminName] = useState('Admin IT');
+  const [role, setRole] = useState('Administrator');
+
+  useEffect(() => {
+    if (username) {
+      setAdminName(username);
+    } else {
+      const savedName = localStorage.getItem('user_name');
+      if (savedName) setAdminName(savedName);
+    }
+
+    const savedRole = localStorage.getItem('user_role');
+    if (savedRole) setRole(savedRole === 'admin' ? 'Administrator IT' : 'Staff Security');
+  }, [username]);
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_name');
+      window.location.href = '/login';
+    }
+  };
+
+  const handleMobileMenuToggle = () => {
+    if (onOpenMobileMenu) {
+      onOpenMobileMenu();
+    } else if (onMenuClick) {
+      onMenuClick();
+    }
+  };
+
   return (
-    <header className="bg-slate-900 text-white py-3 px-4 md:px-8 flex justify-between items-center shadow-md sticky top-0 z-40 border-b border-slate-800 print:hidden">
+    <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 print:hidden shadow-2xs">
+      {/* SISI KIRI: TOMBOL MENU MOBILE (LOKAL) */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden text-slate-300 hover:bg-slate-800"
-          onClick={onOpenMobileMenu}
+          onClick={handleMobileMenuToggle}
+          className="md:hidden text-slate-600 hover:text-slate-900"
+          aria-label="Open Menu"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5" />
         </Button>
-
-        <div className="flex items-center gap-2 font-bold text-base md:text-lg">
-          <Shield className="h-6 w-6 text-purple-400" />
-          <span className="hidden sm:inline">Grand Hotel CCTV Portal</span>
-          <span className="sm:hidden">CCTV Portal</span>
-        </div>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger className="outline-none hover:opacity-90 transition p-1 rounded-full focus:ring-2 focus:ring-purple-400">
-          <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold shadow-md">
-            <User className="w-5 h-5 md:w-6 md:h-6" />
-          </div>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent
-          align="end"
-          className="w-72 mt-2 bg-white text-slate-800 shadow-2xl border border-slate-100 rounded-xl p-4 space-y-3"
+      {/* SISI KANAN: NOTIFIKASI, PROFIL AKUN, & TOMBOL KELUAR */}
+      <div className="flex items-center gap-3">
+        <button
+          className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
+          title="Notifikasi"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center shrink-0">
-              <User className="w-7 h-7" />
-            </div>
-            <div className="space-y-1 overflow-hidden">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-slate-900 truncate">
-                  {username || 'Admin IT'}
-                </span>
-                <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-[10px] px-2 py-0.5 rounded-full font-semibold border-none">
-                  Admin IT
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-500 truncate">admin.it@grandhotel.com</p>
-            </div>
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+        </button>
+
+        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-700 font-bold text-xs shrink-0">
+            <User className="w-4 h-4" />
           </div>
+          <div className="text-left hidden sm:block">
+            <div className="text-xs font-bold text-slate-800 leading-tight">{adminName}</div>
+            <div className="text-[10px] text-slate-500 font-medium">{role}</div>
+          </div>
+        </div>
 
-          <DropdownMenuSeparator className="bg-slate-100 my-2" />
-
-          <DropdownMenuItem
-            onClick={onLogout}
-            className="cursor-pointer text-slate-700 hover:text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-600 rounded-lg px-3 py-2.5 text-sm font-semibold flex items-center gap-2 transition"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <Button
+          onClick={handleLogout}
+          variant="ghost"
+          size="sm"
+          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 font-semibold gap-1.5 ml-1"
+          title="Keluar Akun"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden md:inline">Keluar</span>
+        </Button>
+      </div>
     </header>
   );
 }
+
+export default AdminHeader;

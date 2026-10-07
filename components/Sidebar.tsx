@@ -3,69 +3,110 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Video, FileCheck, Users, Shield } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Camera,
+  FileText,
+  Users,
+  ChevronRight,
+  X,
+} from 'lucide-react';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
 }
 
-export default function Sidebar({ onCloseMobile }: SidebarProps) {
+const navItems = [
+  {
+    title: 'Dashboard',
+    href: '/admin/dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    title: 'Master CCTV',
+    href: '/admin/cctv',
+    icon: Camera,
+  },
+  {
+    title: 'Laporan Maintenance',
+    href: '/admin/reports',
+    icon: FileText,
+  },
+  {
+    title: 'Manajemen User',
+    href: '/admin/users',
+    icon: Users,
+  },
+];
+
+export function Sidebar({ onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
 
-  const navItems = [
-    {
-      label: 'Dashboard Monitoring',
-      href: '/admin/dashboard',
-      icon: LayoutDashboard,
-    },
-    {
-      label: 'Master Data CCTV',
-      href: '/admin/cctv',
-      icon: Video,
-    },
-    {
-      label: 'Kelola User / Akun',
-      href: '/admin/users',
-      icon: Users,
-    },
-    {
-      label: 'Audit & Tarik Report',
-      href: '/admin/reports',
-      icon: FileCheck,
-    },
-  ];
-
   return (
-    <div className="w-64 bg-slate-900 text-slate-300 h-full flex flex-col p-4 border-r border-slate-800">
-      <div className="flex items-center gap-2 px-2 text-white font-bold text-lg border-b border-slate-800 pb-4 mb-6">
-        <Shield className="h-6 w-6 text-purple-400" />
-        <span>Hotel CCTV Admin</span>
+    <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen sticky top-0 border-r border-slate-800 print:hidden shrink-0">
+      {/* BRANDING HEADER HOTEL DENGAN CONTAINER LOGO PUTIH */}
+      <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {/* CONTAINER PUTIH UNTUK LOGO AGAR KELIATAN DENGAN JELAS */}
+          <div className="w-10 h-10 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md border border-slate-200">
+            <img
+              src="/logo.png"
+              alt="Homm Saranam Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="overflow-hidden">
+            <h2 className="font-bold text-sm text-white truncate uppercase tracking-wide">
+              Homm Saranam
+            </h2>
+            <p className="text-[11px] text-purple-300 font-medium truncate">
+              Baturiti • CCTV System
+            </p>
+          </div>
+        </div>
+
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="md:hidden text-slate-400 hover:text-white p-1"
+            title="Tutup Menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
-      <nav className="space-y-1">
-        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
+      {/* NAVIGATION MENU UTAMA */}
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
           Menu Utama
         </div>
         {navItems.map((item) => {
-          const Icon = item.icon;
           const isActive = pathname === item.href;
+          const Icon = item.icon;
+
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onCloseMobile}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition ${
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
                 isActive
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-purple-600 text-white shadow-sm font-semibold'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              <span>{item.label}</span>
+              <div className="flex items-center gap-2.5">
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span>{item.title}</span>
+              </div>
+              {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-80" />}
             </Link>
           );
         })}
       </nav>
-    </div>
+    </aside>
   );
 }
+
+export default Sidebar;

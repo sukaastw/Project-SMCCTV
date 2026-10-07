@@ -1,39 +1,57 @@
-// components/Navbar.tsx
+// components/layout/header.tsx
 'use client';
 
-import { Role } from '@/types/cctv';
-import { Shield, UserCheck, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+import { Bell, ShieldCheck, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
-interface NavbarProps {
-  currentRole: Role;
-  onRoleChange: (role: Role) => void;
-}
+export function Header() {
+  const [adminName, setAdminName] = useState('Admin IT');
+  const [role, setRole] = useState('Administrator');
 
-export default function Navbar({ currentRole, onRoleChange }: NavbarProps) {
+  useEffect(() => {
+    const savedName = localStorage.getItem('user_name');
+    const savedRole = localStorage.getItem('user_role');
+    if (savedName) setAdminName(savedName);
+    if (savedRole) setRole(savedRole === 'admin' ? 'Administrator IT' : 'Staff Security');
+  }, []);
+
   return (
-    <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
-      <div className="flex items-center gap-2 font-bold text-lg">
-        <Shield className="h-6 w-6 text-blue-400" />
-        <span>Grand Hotel - CCTV System</span>
+    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 print:hidden">
+      {/* INFORMASI LOKASI HOTEL */}
+      <div className="flex items-center gap-2">
+        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+        <div className="text-xs">
+          <span className="font-bold text-slate-800">Homm Saranam Baturiti</span>
+          <span className="text-slate-400 mx-1.5">•</span>
+          <span className="text-slate-500 font-medium">IT Security & Monitoring Active</span>
+        </div>
       </div>
-      <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
-        <Button
-          size="sm"
-          variant={currentRole === 'staff' ? 'default' : 'ghost'}
-          onClick={() => onRoleChange('staff')}
-          className="text-xs"
+
+      {/* NOTIFIKASI & PROFIL AKUN */}
+      <div className="flex items-center gap-4">
+        <button
+          className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
+          title="Notifikasi"
         >
-          <UserCheck className="w-4 h-4 mr-1" /> Staff / Security
-        </Button>
-        <Button
-          size="sm"
-          variant={currentRole === 'admin' ? 'default' : 'ghost'}
-          onClick={() => onRoleChange('admin')}
-          className="text-xs"
-        >
-          <Settings className="w-4 h-4 mr-1" /> Admin IT
-        </Button>
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+        </button>
+
+        <div className="h-4 w-px bg-slate-200" />
+
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-700 font-bold text-xs">
+            <User className="w-4 h-4" />
+          </div>
+          <div className="text-left hidden sm:block">
+            <div className="text-xs font-bold text-slate-800 leading-tight">{adminName}</div>
+            <div className="text-[10px] text-purple-600 font-semibold">{role}</div>
+          </div>
+          <Badge className="bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100 text-[10px] ml-1">
+            <ShieldCheck className="w-3 h-3 mr-1 text-purple-600" /> Online
+          </Badge>
+        </div>
       </div>
     </header>
   );

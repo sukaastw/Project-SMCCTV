@@ -1,7 +1,7 @@
 // app/admin/cctv/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CCTV, CCTVStatus } from '@/types/cctv';
 import { initialCCTVs } from '@/lib/mock-data';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -38,17 +38,50 @@ import {
   FileSpreadsheet,
   Printer,
   Sparkles,
-  Upload,
-  Image as ImageIcon,
   CheckCircle2,
   AlertTriangle,
   Info,
+  RefreshCw,
+  Layers,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 
 interface AlertNotification {
   type: 'success' | 'error' | 'info';
   message: string;
 }
+
+const LOCATION_CONFIG: { [key: string]: { prefix: string; floors: string[] } } = {
+  'Main Building': {
+    prefix: 'CAM-MB',
+    floors: ['GF', 'LT1', 'LT2', 'LT3'],
+  },
+  'HWA': {
+    prefix: 'CAM-HWA',
+    floors: ['GF', 'LT2'],
+  },
+  'HWB': {
+    prefix: 'CAM-HWB',
+    floors: ['GF', 'LT2', 'LT3', 'Rooftop'],
+  },
+  'Caffe Toya': {
+    prefix: 'CAM-CT',
+    floors: ['GF'],
+  },
+  'Villa': {
+    prefix: 'CAM-VIL',
+    floors: ['GF', 'LT2'],
+  },
+  'Kitchen Samiya': {
+    prefix: 'CAM-KS',
+    floors: ['GF'],
+  },
+  'Outdoor': {
+    prefix: 'CAM-OUT',
+    floors: ['GF'],
+  },
+};
 
 export default function MasterCCTVPage() {
   const [cctvs, setCCTVs] = useState<CCTV[]>([]);
@@ -59,22 +92,22 @@ export default function MasterCCTVPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<string | null>(null);
 
-  // Modal Hapus Custom
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; code: string } | null>(null);
-
-  // Banner Notifikasi Melayang Atas Tengah (Top-Center)
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [topAlert, setTopAlert] = useState<AlertNotification | null>(null);
 
-  // Form State Lengkap
   const [code, setCode] = useState('');
   const [location, setLocation] = useState('');
+  const [floor, setFloor] = useState('GF');
   const [cameraType, setCameraType] = useState('Dome 4MP');
-  const [zone, setZone] = useState('Public Area');
   const [ipAddress, setIpAddress] = useState('');
   const [status, setStatus] = useState<CCTVStatus>('normal');
   const [damageNotes, setDamageNotes] = useState('');
   const [followUpPlan, setFollowUpPlan] = useState('');
-  const [documentationUrl, setDocumentationUrl] = useState('');
+
+  const [isLocDropdownOpen, setIsLocDropdownOpen] = useState(false);
+  const [locInputText, setLocInputText] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const triggerTopAlert = (type: 'success' | 'error' | 'info', message: string) => {
     setTopAlert({ type, message });
@@ -83,11 +116,7 @@ export default function MasterCCTVPage() {
     }, 4000);
   };
 
-  useEffect(() => {
-    const savedName = localStorage.getItem('user_name');
-    if (savedName) setAdminName(savedName);
-
-    // BACA SINKRONISASI DATA MASTER TERBARU DARI STORAGE
+  const loadMasterData = () => {
     const savedCCTVs = localStorage.getItem('cctv_master_data');
     if (savedCCTVs) {
       setCCTVs(JSON.parse(savedCCTVs));
@@ -95,6 +124,13 @@ export default function MasterCCTVPage() {
       setCCTVs(initialCCTVs);
       localStorage.setItem('cctv_master_data', JSON.stringify(initialCCTVs));
     }
+  };
+
+  useEffect(() => {
+    const savedName = localStorage.getItem('user_name');
+    if (savedName) setAdminName(savedName);
+
+    loadMasterData();
 
     const today = new Date();
     const formattedDate = today.toLocaleDateString('id-ID', {
@@ -107,25 +143,34 @@ export default function MasterCCTVPage() {
     setCurrentDate(formattedDate);
   }, []);
 
-  // Auto-Generate Kode CAM-01, CAM-02, dst.
-  const generateAutoCode = (currentList: CCTV[] = cctvs) => {
-    const nextNumber = currentList.length + 1;
-    return `CAM-${String(nextNumber).padStart(2, '0')}`;
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsLocDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const generateCodeForLocation = (locName: string, currentList: CCTV[] = cctvs) => {
+    if (!locName) return 'CAM-01';
+    const config = LOCATION_CONFIG[locName] || { prefix: 'CAM-LOC' };
+    const prefix = config.prefix;
+    const matchingCount = currentList.filter((item) => item.code.startsWith(prefix)).length;
+    return `${prefix}-${String(matchingCount + 1).padStart(2, '0')}`;
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        triggerTopAlert('error', 'Ukuran file foto terlalu besar! Maksimal 5MB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setDocumentationUrl(reader.result as string);
-        triggerTopAlert('success', 'Foto bukti dokumentasi berhasil diunggah!');
-      };
-      reader.readAsDataURL(file);
+  const handleSelectLocation = (selectedLoc: string) => {
+    setLocation(selectedLoc);
+    setLocInputText(selectedLoc);
+    setIsLocDropdownOpen(false);
+
+    const availableFloors = LOCATION_CONFIG[selectedLoc]?.floors || ['GF'];
+    setFloor(availableFloors[0]);
+
+    if (!isEditing) {
+      setCode(generateCodeForLocation(selectedLoc));
     }
   };
 
@@ -134,38 +179,40 @@ export default function MasterCCTVPage() {
     return (
       item.code.toLowerCase().includes(query) ||
       item.location.toLowerCase().includes(query) ||
+      (item.floor && item.floor.toLowerCase().includes(query)) ||
       item.cameraType.toLowerCase().includes(query) ||
-      item.zone.toLowerCase().includes(query) ||
       item.ipAddress.toLowerCase().includes(query) ||
       (item.damageNotes && item.damageNotes.toLowerCase().includes(query)) ||
       (item.followUpPlan && item.followUpPlan.toLowerCase().includes(query))
     );
   });
 
+  const filteredLocationKeys = Object.keys(LOCATION_CONFIG).filter((locKey) =>
+    locKey.toLowerCase().includes(locInputText.toLowerCase().trim())
+  );
+
   const handleExportExcel = () => {
     try {
       const headers = [
         'Kode CCTV',
         'Tipe Kamera',
-        'Lokasi Detail',
-        'Zona Area',
+        'Lokasi Area',
+        'Lantai / Level',
         'IP Address',
         'Status',
         'Keterangan Rusak',
         'Rencana Tindak Lanjut',
-        'Dokumentasi Terlampir',
         'Terakhir Diperiksa',
       ];
       const rows = filteredCCTVs.map((item) => [
         `"${item.code}"`,
         `"${item.cameraType}"`,
         `"${item.location}"`,
-        `"${item.zone}"`,
+        `"${item.floor || 'GF'}"`,
         `"${item.ipAddress}"`,
         `"${item.status.toUpperCase()}"`,
         `"${item.damageNotes || '-'}"`,
         `"${item.followUpPlan || '-'}"`,
-        `"${item.documentationUrl ? 'ADA FOTO' : 'TIDAK ADA'}"`,
         `"${item.lastChecked}"`,
       ]);
 
@@ -176,7 +223,7 @@ export default function MasterCCTVPage() {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement('a');
       link.setAttribute('href', encodedUri);
-      link.setAttribute('download', `Master_Data_CCTV_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute('download', `Master_Data_CCTV_Homm_Saranam_${new Date().toISOString().slice(0, 10)}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -188,26 +235,26 @@ export default function MasterCCTVPage() {
   };
 
   const handleExportPDF = () => {
-    triggerTopAlert('info', 'Mempersiapkan dokumen untuk dicetak / di-ekspor ke PDF...');
+    triggerTopAlert('info', 'Mempersiapkan dokumen cetak HOMM Saranam Baturiti...');
     window.print();
   };
 
   const resetForm = () => {
     setIsEditing(null);
-    setCode('');
     setLocation('');
+    setLocInputText('');
+    setFloor('GF');
+    setCode('');
     setCameraType('Dome 4MP');
-    setZone('Public Area');
     setIpAddress('');
     setStatus('normal');
     setDamageNotes('');
     setFollowUpPlan('');
-    setDocumentationUrl('');
+    setIsLocDropdownOpen(false);
   };
 
   const handleOpenAddModal = () => {
     resetForm();
-    setCode(generateAutoCode());
     setIsDialogOpen(true);
   };
 
@@ -215,21 +262,23 @@ export default function MasterCCTVPage() {
     setIsEditing(cctv.id);
     setCode(cctv.code);
     setLocation(cctv.location);
+    setLocInputText(cctv.location);
+    setFloor(cctv.floor || 'GF');
     setCameraType(cctv.cameraType);
-    setZone(cctv.zone);
     setIpAddress(cctv.ipAddress);
     setStatus(cctv.status);
     setDamageNotes(cctv.damageNotes || '');
     setFollowUpPlan(cctv.followUpPlan || '');
-    setDocumentationUrl(cctv.documentationUrl || '');
+    setIsLocDropdownOpen(false);
     setIsDialogOpen(true);
   };
 
   const handleSaveCCTV = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!documentationUrl) {
-      triggerTopAlert('error', 'Gagal menyimpan! Unggah foto bukti dokumentasi terlebih dahulu.');
+    const finalLocation = location || locInputText;
+    if (!finalLocation) {
+      triggerTopAlert('error', 'Pilih atau ketik lokasi area terlebih dahulu!');
       return;
     }
 
@@ -240,35 +289,34 @@ export default function MasterCCTVPage() {
           item.id === isEditing
             ? {
                 ...item,
-                code,
-                location,
+                code: code || generateCodeForLocation(finalLocation),
+                location: finalLocation,
+                floor,
                 cameraType,
-                zone,
                 ipAddress,
                 status,
                 damageNotes,
                 followUpPlan,
-                documentationUrl,
               }
             : item
         );
         triggerTopAlert('success', `Berhasil! Data unit CCTV ${code} telah diperbarui.`);
       } else {
+        const finalCode = code || generateCodeForLocation(finalLocation);
         const newCCTV: CCTV = {
           id: `cctv-${Date.now()}`,
-          code,
-          location,
+          code: finalCode,
+          location: finalLocation,
+          floor,
           cameraType,
-          zone,
           ipAddress,
           status,
           damageNotes,
           followUpPlan,
-          documentationUrl,
           lastChecked: new Date().toISOString().slice(0, 10),
         };
         updatedList = [...cctvs, newCCTV];
-        triggerTopAlert('success', `Berhasil! Unit CCTV ${code} baru telah ditambahkan.`);
+        triggerTopAlert('success', `Berhasil! Unit CCTV ${finalCode} baru telah ditambahkan.`);
       }
 
       setCCTVs(updatedList);
@@ -295,9 +343,20 @@ export default function MasterCCTVPage() {
     }
   };
 
+  const confirmResetData = () => {
+    try {
+      localStorage.removeItem('cctv_master_data');
+      loadMasterData();
+      triggerTopAlert('info', 'Data Master CCTV telah disinkronkan kembali ke versi terbaru.');
+    } catch {
+      triggerTopAlert('error', 'Gagal menyinkronkan data.');
+    } finally {
+      setIsResetDialogOpen(false);
+    }
+  };
+
   return (
     <div className="space-y-6 relative">
-      {/* BANNER NOTIFIKASI MELAYANG ATAS TENGAH */}
       {topAlert && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 transition-all duration-300 animate-in fade-in slide-in-from-top-4 print:hidden">
           <div
@@ -324,46 +383,75 @@ export default function MasterCCTVPage() {
       )}
 
       {/* Header Utama Layar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Master Data Unit CCTV</h1>
           <p className="text-slate-500 text-xs mt-1">
-            Kelola inventaris seluruh unit CCTV, tipe kamera, IP address, detail kerusakan, dan dokumentasi foto.
+            HOMM Saranam Baturiti — Kelola inventaris seluruh unit CCTV, tipe kamera, lokasi & lantai, serta IP address.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2.5 self-end md:self-auto shrink-0">
+          <Button
+            onClick={() => setIsResetDialogOpen(true)}
+            variant="outline"
+            className="h-9 px-3 text-xs font-medium text-slate-700 border-slate-300 hover:bg-slate-100 hover:text-slate-900 gap-1.5 shadow-2xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+            <span>Sync</span>
+          </Button>
+
           <Button
             onClick={handleExportExcel}
             variant="outline"
-            className="border-green-600 text-green-700 hover:bg-green-50 text-xs gap-1.5"
+            className="h-9 px-3 text-xs font-medium border-emerald-600 text-emerald-700 hover:bg-emerald-50 gap-1.5 shadow-2xs"
           >
-            <FileSpreadsheet className="w-4 h-4 text-green-600" /> Export Excel
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Export Excel</span>
           </Button>
 
           <Button
             onClick={handleExportPDF}
             variant="outline"
-            className="border-purple-600 text-purple-700 hover:bg-purple-50 text-xs gap-1.5"
+            className="h-9 px-3 text-xs font-medium border-purple-600 text-purple-700 hover:bg-purple-50 gap-1.5 shadow-2xs"
           >
-            <Printer className="w-4 h-4 text-purple-600" /> Cetak / Export PDF
+            <Printer className="w-3.5 h-3.5 text-purple-600" />
+            <span>Cetak / Export PDF</span>
           </Button>
 
-          <Button onClick={handleOpenAddModal} className="bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1.5">
-            <Plus className="w-4 h-4" /> Tambah Unit CCTV
+          <Button
+            onClick={handleOpenAddModal}
+            className="h-9 px-3.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white gap-1.5 shadow-2xs"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Unit CCTV</span>
           </Button>
         </div>
       </div>
 
-      {/* KOP LAPORAN HITAM PUTIH CETAK */}
+      {/* KOP LAPORAN CETAK MASTER DATA RESMI */}
       <div className="hidden print:block mb-6 border-b-2 border-black pb-4 text-black">
-        <div className="text-center">
-          <h2 className="text-xl font-bold uppercase tracking-wide">GRAND HOTEL BALI</h2>
-          <h3 className="text-sm font-semibold uppercase mt-0.5">LAPORAN MASTER DATA INVENTARIS PERANGKAT CCTV</h3>
-          <p className="text-xs mt-0.5">Jl. Bypass Ngurah Rai No. 88, Kuta, Bali • Telp: (0361) 123456</p>
+        <div className="flex items-center justify-between border-b border-black pb-3 mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="Homm Saranam Logo" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h2 className="text-lg font-extrabold uppercase tracking-widest">HOMM SARANAM BATURITI</h2>
+              <p className="text-[10px] uppercase font-semibold text-gray-700">A Banyan Group Escape • Tabanan, Bali</p>
+            </div>
+          </div>
+          <div className="text-right text-[10px]">
+            <p className="font-bold">IT DEPARTMENT & SECURITY MAINTENANCE</p>
+            <p>Jl. Raya Baturiti, Baturiti, Tabanan, Bali 82191</p>
+          </div>
         </div>
 
-        <div className="mt-4 pt-3 border-t border-black text-xs grid grid-cols-2 gap-y-1">
+        <div className="text-center my-2">
+          <h3 className="text-sm font-bold uppercase tracking-wide">LAPORAN MASTER DATA INVENTARIS PERANGKAT CCTV</h3>
+        </div>
+
+        <div className="mt-3 pt-2 border-t border-black text-xs grid grid-cols-2 gap-y-1">
           <div>
             <span className="font-semibold">Dicetak Oleh:</span> {adminName} (Administrator IT)
           </div>
@@ -374,7 +462,7 @@ export default function MasterCCTVPage() {
             <span className="font-semibold">Total Perangkat:</span> {filteredCCTVs.length} Unit CCTV
           </div>
           <div className="text-right">
-            <span className="font-semibold">Status Dokumen:</span> RESMI / AUDIT IT
+            <span className="font-semibold">Status Dokumen:</span> RESMI / AUDIT IT HOMM SARANAM
           </div>
         </div>
       </div>
@@ -389,7 +477,7 @@ export default function MasterCCTVPage() {
           <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Cari kode, lokasi, tipe, IP, kendala..."
+              placeholder="Cari kode, lokasi, lantai, tipe, IP..."
               value={searchQuery}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="pl-9 pr-8 text-xs bg-slate-50 border-slate-200 focus:bg-white transition"
@@ -413,19 +501,18 @@ export default function MasterCCTVPage() {
                   <th className="p-2.5 border border-slate-200 print:border-black text-center w-10">No</th>
                   <th className="p-2.5 border border-slate-200 print:border-black">Kode CCTV</th>
                   <th className="p-2.5 border border-slate-200 print:border-black">Tipe Kamera</th>
-                  <th className="p-2.5 border border-slate-200 print:border-black">Lokasi Detail & Zona</th>
+                  <th className="p-2.5 border border-slate-200 print:border-black">Lokasi Area & Lantai</th>
                   <th className="p-2.5 border border-slate-200 print:border-black">IP Address</th>
                   <th className="p-2.5 border border-slate-200 print:border-black text-center">Status</th>
                   <th className="p-2.5 border border-slate-200 print:border-black">Keterangan Rusak</th>
                   <th className="p-2.5 border border-slate-200 print:border-black">Rencana Tindak Lanjut</th>
-                  <th className="p-2.5 border border-slate-200 print:border-black text-center">Dokumentasi Foto</th>
                   <th className="p-2.5 border border-slate-200 print:border-black text-center print:hidden">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredCCTVs.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="p-6 text-center text-slate-500 italic">
+                    <td colSpan={9} className="p-6 text-center text-slate-500 italic">
                       Tidak ada data unit CCTV yang sesuai dengan pencarian "{searchQuery}".
                     </td>
                   </tr>
@@ -436,8 +523,11 @@ export default function MasterCCTVPage() {
                       <td className="p-2.5 border border-slate-200 print:border-black font-bold text-slate-900 print:text-black">{item.code}</td>
                       <td className="p-2.5 border border-slate-200 print:border-black text-slate-700 print:text-black font-medium">{item.cameraType}</td>
                       <td className="p-2.5 border border-slate-200 print:border-black">
-                        <div className="font-medium">{item.location}</div>
-                        <div className="text-[11px] text-purple-700 print:text-gray-700 font-semibold">{item.zone}</div>
+                        <div className="font-bold text-slate-800 print:text-black">{item.location}</div>
+                        <div className="text-[11px] text-purple-700 print:text-gray-700 font-semibold flex items-center gap-1 mt-0.5">
+                          <Layers className="w-3 h-3 text-purple-600 print:hidden" />
+                          <span>Lantai: {item.floor || 'GF'}</span>
+                        </div>
                       </td>
                       <td className="p-2.5 border border-slate-200 print:border-black font-mono text-slate-700 print:text-black">{item.ipAddress}</td>
                       <td className="p-2.5 border border-slate-200 print:border-black text-center">
@@ -463,27 +553,6 @@ export default function MasterCCTVPage() {
                       </td>
                       <td className="p-2.5 border border-slate-200 print:border-black text-slate-700 print:text-black">{item.damageNotes || '-'}</td>
                       <td className="p-2.5 border border-slate-200 print:border-black text-slate-700 print:text-black">{item.followUpPlan || '-'}</td>
-                      <td className="p-2.5 border border-slate-200 print:border-black text-center">
-                        {item.documentationUrl ? (
-                          <div className="flex flex-col items-center gap-1">
-                            <a
-                              href={item.documentationUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="print:hidden group relative inline-block"
-                            >
-                              <img
-                                src={item.documentationUrl}
-                                alt={`Dokumentasi ${item.code}`}
-                                className="w-10 h-10 rounded object-cover border border-slate-300 hover:scale-110 transition shadow-xs"
-                              />
-                            </a>
-                            <span className="hidden print:inline text-[10px]">ADA (TERLAMPIR)</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic">Tidak Ada</span>
-                        )}
-                      </td>
                       <td className="p-2.5 border border-slate-200 text-center print:hidden">
                         <div className="flex items-center justify-center gap-1">
                           <Button
@@ -512,12 +581,11 @@ export default function MasterCCTVPage() {
             </table>
           </div>
 
-          {/* KOLOM TANDA TANGAN PRINT */}
           <div className="hidden print:grid grid-cols-2 gap-8 mt-12 text-xs text-black">
             <div className="text-center space-y-14">
               <p>Dilaporkan Oleh,</p>
               <p className="font-bold underline uppercase">( {adminName} )</p>
-              <p className="text-[10px] -mt-12 text-gray-600">Admin IT & Maintenance</p>
+              <p className="text-[10px] -mt-12 text-gray-600">Admin IT HOMM Saranam Baturiti</p>
             </div>
             <div className="text-center space-y-14">
               <p>Disetujui Oleh,</p>
@@ -537,7 +605,7 @@ export default function MasterCCTVPage() {
               Konfirmasi Hapus Unit CCTV
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-slate-600 mt-2">
-              Apakah Anda yakin ingin menghapus unit <strong className="text-slate-900">{deleteTarget?.code}</strong> dari inventaris?
+              Apakah Anda yakin ingin menghapus unit <strong className="text-slate-900">{deleteTarget?.code}</strong> dari inventaris HOMM Saranam Baturiti?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4 flex gap-2 justify-end">
@@ -552,6 +620,30 @@ export default function MasterCCTVPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* MODAL DIALOG KONFIRMASI SYNC / RESET DATA CUSTOM */}
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent className="bg-white rounded-xl max-w-md p-6">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-purple-600" />
+              Sinkronkan Ulang Data Master
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-slate-600 mt-2">
+              Apakah Anda yakin ingin menyinkronkan ulang seluruh data Master CCTV dengan data awal sistem HOMM Saranam Baturiti?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 flex gap-2 justify-end">
+            <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmResetData}
+              className="bg-purple-600 hover:bg-purple-700 text-white text-xs"
+            >
+              Ya, Sinkronkan Data
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* MODAL POP-UP FORM DIALOG INPUT LENGKAP */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-lg bg-white p-6 rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -560,19 +652,88 @@ export default function MasterCCTVPage() {
               {isEditing ? 'Edit Data CCTV' : 'Tambah Unit CCTV Baru'}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Isi rincian lengkap inventaris, tipe kamera, status, kendala, dan unggah foto dokumentasi.
+              Isi rincian inventaris HOMM Saranam Baturiti, lokasi area, lantai, tipe kamera, dan status.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveCCTV} className="space-y-3 py-1">
+          <form onSubmit={handleSaveCCTV} className="space-y-3.5 py-1">
+            <div className="space-y-1 relative" ref={dropdownRef}>
+              <Label className="text-xs font-semibold">Pilih Lokasi Area (Ketik / Pilih Dropdown)</Label>
+              <div className="relative">
+                <Input
+                  placeholder="Ketik atau pilih lokasi..."
+                  className="text-xs bg-slate-50 font-semibold text-slate-800 pr-10 focus:bg-white"
+                  value={locInputText}
+                  onFocus={() => setIsLocDropdownOpen(true)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const typed = e.target.value;
+                    setLocInputText(typed);
+                    setLocation(typed);
+                    setIsLocDropdownOpen(true);
+                  }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsLocDropdownOpen(!isLocDropdownOpen)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+
+              {isLocDropdownOpen && (
+                <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto py-1">
+                  {filteredLocationKeys.length === 0 ? (
+                    <div className="p-2.5 text-xs text-slate-400 italic text-center">
+                      Tidak ada lokasi "{locInputText}"
+                    </div>
+                  ) : (
+                    filteredLocationKeys.map((locKey) => {
+                      const isSelected = location === locKey;
+                      return (
+                        <button
+                          key={locKey}
+                          type="button"
+                          onClick={() => handleSelectLocation(locKey)}
+                          className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-purple-50 transition ${
+                            isSelected ? 'bg-purple-50 font-bold text-purple-700' : 'text-slate-700'
+                          }`}
+                        >
+                          <span>{locKey} <span className="text-[10px] text-slate-400 font-normal">({LOCATION_CONFIG[locKey].prefix})</span></span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <Label className="text-xs font-semibold">Pilih Lantai / Level</Label>
+                <select
+                  className="w-full p-2 border border-slate-300 rounded-md text-xs mt-1 bg-white font-bold text-purple-700"
+                  value={floor}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFloor(e.target.value)}
+                  required
+                >
+                  {(LOCATION_CONFIG[location]?.floors || ['GF']).map((fl) => (
+                    <option key={fl} value={fl}>
+                      Lantai: {fl}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <Label className="text-xs font-semibold flex items-center justify-between">
-                  <span>Kode CCTV</span>
-                  {!isEditing && (
+                  <span>Kode CCTV (Auto)</span>
+                  {!isEditing && location && (
                     <button
                       type="button"
-                      onClick={() => setCode(generateAutoCode())}
+                      onClick={() => setCode(generateCodeForLocation(location))}
                       className="text-[10px] text-purple-600 hover:underline flex items-center gap-0.5"
                     >
                       <Sparkles className="w-3 h-3" /> Auto
@@ -580,14 +741,16 @@ export default function MasterCCTVPage() {
                   )}
                 </Label>
                 <Input
-                  placeholder="misal: CAM-01"
+                  placeholder="misal: CAM-MB-01"
                   className="text-xs mt-1 font-bold text-purple-700 bg-purple-50/50"
                   value={code}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCode(e.target.value)}
                   required
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-semibold">Tipe Kamera</Label>
                 <Input
@@ -597,33 +760,6 @@ export default function MasterCCTVPage() {
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCameraType(e.target.value)}
                   required
                 />
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-xs font-semibold">Lokasi Detail</Label>
-              <Input
-                placeholder="misal: Lift Tamu Lt. 2 / Lobby Utama"
-                className="text-xs mt-1"
-                value={location}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-semibold">Zona Area</Label>
-                <select
-                  className="w-full p-2 border rounded-md text-xs mt-1 bg-white font-medium"
-                  value={zone}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setZone(e.target.value)}
-                >
-                  <option value="Public Area">Public Area (PA)</option>
-                  <option value="Guest Area">Guest Area (GA)</option>
-                  <option value="Back of House">Back of House (BOH)</option>
-                  <option value="Perimeter & Parking">Perimeter & Parking (PRM)</option>
-                </select>
               </div>
 
               <div>
@@ -670,41 +806,6 @@ export default function MasterCCTVPage() {
                 value={followUpPlan}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFollowUpPlan(e.target.value)}
               />
-            </div>
-
-            <div>
-              <Label className="text-xs font-semibold text-slate-800 flex items-center justify-between">
-                <span>Upload Foto Bukti Dokumentasi <span className="text-red-500">*</span></span>
-                {documentationUrl && (
-                  <span className="text-[10px] text-green-600 font-bold flex items-center gap-1">
-                    <ImageIcon className="w-3 h-3" /> Foto Terpilih
-                  </span>
-                )}
-              </Label>
-
-              <div className="mt-1.5 flex items-center gap-3">
-                <label className="flex-1 cursor-pointer border-2 border-dashed border-purple-200 hover:border-purple-500 bg-purple-50/50 hover:bg-purple-50 p-3 rounded-lg flex items-center justify-center gap-2 transition text-xs font-semibold text-purple-700">
-                  <Upload className="w-4 h-4 text-purple-600" />
-                  <span>{documentationUrl ? 'Ganti File Foto' : 'Pilih Foto dari Perangkat'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    required={!documentationUrl}
-                  />
-                </label>
-
-                {documentationUrl && (
-                  <div className="relative w-12 h-12 rounded-lg border overflow-hidden shrink-0">
-                    <img
-                      src={documentationUrl}
-                      alt="Preview Foto CCTV"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-              </div>
             </div>
 
             <DialogFooter className="pt-3 flex gap-2 justify-end">

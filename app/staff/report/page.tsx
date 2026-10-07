@@ -1,34 +1,76 @@
-// app/staff/reports/page.tsx
+// app/staff/report/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CCTV, TicketReport } from '@/types/cctv';
 import { initialCCTVs, initialTickets } from '@/lib/mock-data';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Send, CheckCircle2, AlertTriangle, Upload, ImageIcon } from 'lucide-react';
+import {
+  Send,
+  AlertCircle,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  X,
+  Camera,
+  Layers,
+  ChevronDown,
+  Check,
+  UploadCloud,
+  Image as ImageIcon,
+  Trash2,
+} from 'lucide-react';
+
+interface AlertNotification {
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
 
 export default function StaffReportPage() {
   const [cctvs, setCCTVs] = useState<CCTV[]>([]);
   const [tickets, setTickets] = useState<TicketReport[]>([]);
-  
-  // Form State Laporan Staff
+
+  // Form State
   const [selectedCCTVId, setSelectedCCTVId] = useState('');
-  const [issueType, setIssueType] = useState('Gambar No-Signal / Mati');
+  const [issueType, setIssueType] = useState('Gambar No-Signal / Blank');
   const [description, setDescription] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
-  const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [reporterName, setReporterName] = useState('');
+
+  // Foto State (Base64 string)
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoFileName, setPhotoFileName] = useState<string>('');
+  const [photoFileSize, setPhotoFileSize] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Combobox State
+  const [comboboxInput, setComboboxInput] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Notifikasi Melayang Atas
+  const [topAlert, setTopAlert] = useState<AlertNotification | null>(null);
+
+  const triggerTopAlert = (type: 'success' | 'error' | 'info', message: string) => {
+    setTopAlert({ type, message });
+    setTimeout(() => {
+      setTopAlert(null);
+    }, 4000);
+  };
 
   useEffect(() => {
-    // Muat data master CCTV terbaru
+    const savedName = localStorage.getItem('user_name');
+    if (savedName) setReporterName(savedName);
+
     const savedCCTVs = localStorage.getItem('cctv_master_data');
     if (savedCCTVs) {
       setCCTVs(JSON.parse(savedCCTVs));
     } else {
       setCCTVs(initialCCTVs);
+      localStorage.setItem('cctv_master_data', JSON.stringify(initialCCTVs));
     }
 
     const savedTickets = localStorage.getItem('cctv_tickets_data');
@@ -36,187 +78,370 @@ export default function StaffReportPage() {
       setTickets(JSON.parse(savedTickets));
     } else {
       setTickets(initialTickets);
+      localStorage.setItem('cctv_tickets_data', JSON.stringify(initialTickets));
     }
   }, []);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handler Pilihan Foto dengan Validasi Ukuran File (Maksimal 2MB)
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Batas Ukuran File 2MB (2 * 1024 * 1024 bytes)
+    const MAX_SIZE_BYTES = 2 * 1024 * 1024;
+
+    if (file.size > MAX_SIZE_BYTES) {
+      triggerTopAlert(
+        'error',
+        `Ukuran file foto terlalu besar (${(file.size / (1024 * 1024)).toFixed(2)} MB). Maksimal 2MB!`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
+
+    const sizeFormatted =
+      file.size >= 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+        : `${(file.size / 1024).toFixed(0)} KB`;
+
+    setPhotoFileName(file.name);
+    setPhotoFileSize(sizeFormatted);
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoBase64(null);
+    setPhotoFileName('');
+    setPhotoFileSize('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const filteredCCTVs = cctvs.filter((item) => {
+    const query = comboboxInput.toLowerCase().trim();
+    return (
+      item.code.toLowerCase().includes(query) ||
+      item.location.toLowerCase().includes(query) ||
+      (item.floor && item.floor.toLowerCase().includes(query))
+    );
+  });
+
+  const handleSelectCCTV = (item: CCTV) => {
+    setSelectedCCTVId(item.id);
+    setComboboxInput(`${item.code} — ${item.location} (${item.floor || 'GF'})`);
+    setIsDropdownOpen(false);
   };
 
   const handleSubmitReport = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedCCTVId) {
-      setAlertMsg({ type: 'error', text: 'Pilih unit CCTV yang mengalami kendala!' });
+      triggerTopAlert('error', 'Pilih unit CCTV dari daftar terlebih dahulu!');
       return;
     }
 
-    if (!photoUrl) {
-      setAlertMsg({ type: 'error', text: 'Wajib mengunggah foto bukti kendala!' });
+    const cctv = cctvs.find((item) => item.id === selectedCCTVId);
+    if (!cctv) {
+      triggerTopAlert('error', 'Perangkat CCTV tidak ditemukan.');
       return;
     }
 
-    const targetCCTV = cctvs.find((c) => c.id === selectedCCTVId);
-    if (!targetCCTV) return;
+    try {
+      const today = new Date();
+      const formattedDate = today.toISOString().slice(0, 10);
 
-    // 1. Buat Tiket Laporan Baru
-    const newTicket: TicketReport = {
-      id: `TKT-${Date.now()}`,
-      cctvId: targetCCTV.id,
-      cctvCode: targetCCTV.code,
-      location: targetCCTV.location,
-      reporterName: localStorage.getItem('user_name') || 'Staff Security',
-      issueType,
-      description,
-      photoUrl,
-      status: 'pending',
-      reportedAt: new Date().toISOString().slice(0, 10),
-    };
+      const newTicket: TicketReport & { photoUrl?: string } = {
+        id: `TCK-${Date.now().toString().slice(-6)}`,
+        cctvId: cctv.id,
+        cctvCode: cctv.code,
+        location: cctv.location,
+        floor: cctv.floor || 'GF',
+        issueType,
+        description,
+        reporterName: reporterName || 'Staff Security',
+        reportedAt: formattedDate,
+        status: 'pending',
+        photoUrl: photoBase64 || undefined,
+      };
 
-    const updatedTickets = [newTicket, ...tickets];
-    setTickets(updatedTickets);
-    localStorage.setItem('cctv_tickets_data', JSON.stringify(updatedTickets));
+      const updatedTickets = [newTicket, ...tickets];
+      setTickets(updatedTickets);
+      localStorage.setItem('cctv_tickets_data', JSON.stringify(updatedTickets));
 
-    // 2. OTOMATIS UBAH STATUS CCTV DI MASTER DATA MENJADI 'BROKEN' (RUSAK)
-    const updatedCCTVs = cctvs.map((item) =>
-      item.id === selectedCCTVId
-        ? {
-            ...item,
-            status: 'broken' as const,
-            damageNotes: `[Laporan Security]: ${issueType} - ${description}`,
-            documentationUrl: photoUrl,
-            lastChecked: new Date().toISOString().slice(0, 10),
-          }
-        : item
-    );
+      // Reset Form Input
+      setSelectedCCTVId('');
+      setComboboxInput('');
+      setIssueType('Gambar No-Signal / Blank');
+      setDescription('');
+      handleRemovePhoto();
 
-    setCCTVs(updatedCCTVs);
-    localStorage.setItem('cctv_master_data', JSON.stringify(updatedCCTVs));
-
-    setAlertMsg({
-      type: 'success',
-      text: `Laporan untuk ${targetCCTV.code} berhasil dikirim! Status CCTV di Master Data otomatis berubah menjadi RUSAK.`,
-    });
-
-    // Reset Form
-    setSelectedCCTVId('');
-    setDescription('');
-    setPhotoUrl('');
+      triggerTopAlert(
+        'success',
+        `Laporan kendala untuk CCTV ${cctv.code} berhasil dikirim ke Tim IT!`
+      );
+    } catch {
+      triggerTopAlert('error', 'Gagal mengirim laporan. Silakan coba lagi.');
+    }
   };
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Form Laporan Kendala CCTV</h1>
-        <p className="text-slate-500 text-xs mt-1">
-          Laporkan unit CCTV yang mengalami kerusakan atau gangguan operasional dari lapangan.
-        </p>
-      </div>
+  const selectedCCTVObj = cctvs.find((item) => item.id === selectedCCTVId);
 
-      {alertMsg && (
-        <div
-          className={`p-4 rounded-xl border flex items-center gap-3 text-xs font-semibold ${
-            alertMsg.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}
-        >
-          {alertMsg.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-          ) : (
-            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-          )}
-          <span>{alertMsg.text}</span>
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 relative">
+      {/* BANNER NOTIFIKASI MELAYANG */}
+      {topAlert && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+          <div
+            className={`p-3.5 rounded-xl border shadow-xl flex items-center justify-between gap-3 text-xs font-semibold ${
+              topAlert.type === 'success'
+                ? 'bg-green-600 border-green-700 text-white shadow-green-200'
+                : topAlert.type === 'error'
+                ? 'bg-red-600 border-red-700 text-white shadow-red-200'
+                : 'bg-blue-600 border-blue-700 text-white shadow-blue-200'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              {topAlert.type === 'success' && <CheckCircle2 className="w-5 h-5 text-white shrink-0" />}
+              {topAlert.type === 'error' && <AlertTriangle className="w-5 h-5 text-white shrink-0" />}
+              {topAlert.type === 'info' && <Info className="w-5 h-5 text-white shrink-0" />}
+              <span>{topAlert.message}</span>
+            </div>
+
+            <button onClick={() => setTopAlert(null)} className="text-white/80 hover:text-white p-1 rounded-md">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
+      {/* HEADER PAGE */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Form Lapor Kendala CCTV</h1>
+        <p className="text-slate-500 text-xs mt-1">
+          HOMM Saranam Baturiti — Laporkan perangkat CCTV yang mengalami masalah atau gangguan operasional ke Tim IT.
+        </p>
+      </div>
+
       <Card className="bg-white shadow-sm border-slate-200">
-        <CardHeader className="border-b pb-4">
-          <CardTitle className="text-base font-bold text-slate-800">
-            Buat Laporan Kerusakan
+        <CardHeader className="border-b border-slate-100 pb-4">
+          <CardTitle className="text-base flex items-center gap-2 text-slate-800">
+            <AlertCircle className="w-5 h-5 text-purple-600" />
+            Rincian Laporan Kerusakan
           </CardTitle>
+          <CardDescription className="text-xs">
+            Pilih unit CCTV, unggah foto bukti, dan jelaskan kendala secara rinci.
+          </CardDescription>
         </CardHeader>
 
-        <CardContent className="pt-4">
+        <CardContent className="pt-6">
           <form onSubmit={handleSubmitReport} className="space-y-4">
-            <div>
-              <Label className="text-xs font-semibold">Pilih Unit CCTV Kendala</Label>
-              <select
-                className="w-full p-2.5 border rounded-lg text-xs mt-1 bg-white font-medium"
-                value={selectedCCTVId}
-                onChange={(e) => setSelectedCCTVId(e.target.value)}
-                required
-              >
-                <option value="">-- Pilih Kode & Lokasi CCTV --</option>
-                {cctvs.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.code} — {item.location} ({item.status.toUpperCase()})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <Label className="text-xs font-semibold">Jenis Kendala / Masalah</Label>
-              <select
-                className="w-full p-2.5 border rounded-lg text-xs mt-1 bg-white font-medium"
-                value={issueType}
-                onChange={(e) => setIssueType(e.target.value)}
-              >
-                <option value="Gambar No-Signal / Mati">Gambar No-Signal / Mati</option>
-                <option value="Lensa Buram / Kotor">Lensa Buram / Kotor</option>
-                <option value="Posisi Arah Berubah">Posisi Arah Berubah</option>
-                <option value="Kabel / Connector Fisik Rusak">Kabel / Connector Fisik Rusak</option>
-                <option value="Lainnya">Lainnya</option>
-              </select>
-            </div>
-
-            <div>
-              <Label className="text-xs font-semibold">Rincian Deskripsi Kendala</Label>
-              <Textarea
-                placeholder="Tuliskan rincian kendala yang ditemukan..."
-                className="text-xs mt-1 h-20"
-                value={description}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+            {/* 1. NAMA PELAPOR */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-slate-700">Nama Pelapor (Security / Staff)</Label>
+              <Input
+                type="text"
+                value={reporterName}
+                onChange={(e) => setReporterName(e.target.value)}
+                placeholder="Masukkan nama pelapor..."
+                className="text-xs bg-slate-50 border-slate-200 font-semibold text-slate-800 focus:bg-white"
                 required
               />
             </div>
 
-            <div>
-              <Label className="text-xs font-semibold text-slate-800">
-                Upload Foto Bukti Kendala <span className="text-red-500">*</span>
-              </Label>
-              <div className="mt-1.5 flex items-center gap-3">
-                <label className="flex-1 cursor-pointer border-2 border-dashed border-blue-200 hover:border-blue-500 bg-blue-50/50 p-3 rounded-lg flex items-center justify-center gap-2 transition text-xs font-semibold text-blue-700">
-                  <Upload className="w-4 h-4 text-blue-600" />
-                  <span>{photoUrl ? 'Ganti Foto' : 'Pilih Foto Kendala'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    required={!photoUrl}
-                  />
-                </label>
-
-                {photoUrl && (
-                  <div className="w-12 h-12 rounded-lg border overflow-hidden shrink-0">
-                    <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                  </div>
-                )}
+            {/* 2. CUSTOM SEARCHABLE COMBOBOX */}
+            <div className="space-y-1 relative" ref={dropdownRef}>
+              <Label className="text-xs font-semibold text-slate-700">Pilih Unit CCTV Kendala</Label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Ketik kode atau lokasi CCTV (misal: CAM-MB-01)..."
+                  value={comboboxInput}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onChange={(e) => {
+                    setComboboxInput(e.target.value);
+                    setSelectedCCTVId('');
+                    setIsDropdownOpen(true);
+                  }}
+                  className="text-xs bg-slate-50 border-slate-200 font-semibold text-slate-800 pr-10 focus:bg-white"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
               </div>
+
+              {isDropdownOpen && (
+                <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-56 overflow-y-auto py-1">
+                  {filteredCCTVs.length === 0 ? (
+                    <div className="p-3 text-xs text-slate-400 italic text-center">
+                      Tidak ditemukan CCTV dengan kata kunci "{comboboxInput}"
+                    </div>
+                  ) : (
+                    filteredCCTVs.map((item) => {
+                      const isSelected = selectedCCTVId === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleSelectCCTV(item)}
+                          className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-purple-50 transition ${
+                            isSelected ? 'bg-purple-50 font-bold text-purple-700' : 'text-slate-700'
+                          }`}
+                        >
+                          <div>
+                            <span className="font-bold text-slate-900">{item.code}</span>
+                            <span className="text-slate-500 ml-1.5">— {item.location} ({item.floor || 'GF'})</span>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-purple-600" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs gap-2 py-2.5">
-              <Send className="w-4 h-4" /> Kirim Laporan Kendala
-            </Button>
+            {/* HIGHLIGHT DETAIL UNIT TERPILIH */}
+            {selectedCCTVObj && (
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs space-y-1 text-purple-900 animate-in fade-in">
+                <div className="flex items-center gap-2 font-bold">
+                  <Camera className="w-4 h-4 text-purple-600" />
+                  <span>CCTV Terpilih: {selectedCCTVObj.code}</span>
+                </div>
+                <div className="flex items-center gap-4 text-[11px] text-purple-700 font-medium pl-6">
+                  <span>Lokasi: {selectedCCTVObj.location}</span>
+                  <span className="flex items-center gap-1">
+                    <Layers className="w-3 h-3" /> Lantai: {selectedCCTVObj.floor || 'GF'}
+                  </span>
+                  <span>IP: {selectedCCTVObj.ipAddress}</span>
+                </div>
+              </div>
+            )}
+
+            {/* 3. JENIS KENDALA */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-slate-700">Jenis Kendala / Kerusakan</Label>
+              <select
+                value={issueType}
+                onChange={(e) => setIssueType(e.target.value)}
+                className="w-full p-2.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                required
+              >
+                <option value="Gambar No-Signal / Blank">Gambar No-Signal / Blank</option>
+                <option value="Lensa Buram / Pudar / Minyak">Lensa Buram / Pudar / Minyak</option>
+                <option value="Kamera Mati Total (Power Off)">Kamera Mati Total (Power Off)</option>
+                <option value="Posisi / Angle Bergeser">Posisi / Angle Bergeser</option>
+                <option value="Arah PTZ / Infrared Bermasalah">Arah PTZ / Infrared Bermasalah</option>
+                <option value="Kabel / Connector Longgar / Rusak">Kabel / Connector Longgar / Rusak</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+
+            {/* 4. UNGGAH FOTO BUKTI KENDALA (MAKSIMAL 2MB) */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Foto Bukti Kendala (Opsional)</span>
+                <span className="text-[10px] text-slate-400 font-normal">Maksimal 2 MB (JPG/PNG)</span>
+              </Label>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/png, image/jpeg, image/jpg, image/webp"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+
+              {!photoBase64 ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-200 hover:border-purple-400 bg-slate-50/70 hover:bg-purple-50/40 rounded-xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5"
+                >
+                  <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs font-semibold text-slate-700">
+                    Klik untuk memilih foto kerusakan
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Format gambar PNG, JPG, WEBP hingga batas 2 MB
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="w-12 h-12 rounded-lg bg-slate-200 border border-slate-300 overflow-hidden shrink-0">
+                      <img
+                        src={photoBase64}
+                        alt="Bukti Kerusakan"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="overflow-hidden text-xs">
+                      <div className="font-semibold text-slate-800 truncate flex items-center gap-1">
+                        <ImageIcon className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span className="truncate">{photoFileName}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                        Ukuran: {photoFileSize}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemovePhoto}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs shrink-0 h-8 px-2"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    <span>Hapus</span>
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* 5. DESKRIPSI DETAIL */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-slate-700">Deskripsi / Catatan Tambahan</Label>
+              <Textarea
+                placeholder="Tuliskan gejala kendala lebih detail (misal: gambar bergaris sejak jam 08:00, atau adaptor berbunyi)..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="text-xs bg-slate-50 border-slate-200 focus:bg-white h-24"
+                required
+              />
+            </div>
+
+            {/* TOMBOL SUBMIT */}
+            <div className="pt-2">
+              <Button
+                type="submit"
+                className="w-full h-10 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs gap-2 shadow-sm"
+              >
+                <Send className="w-4 h-4" />
+                <span>Kirim Laporan Kerusakan</span>
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

@@ -1,7 +1,7 @@
 // components/StaffHeader.tsx
 'use client';
 
-import { Shield, User, LogOut, Menu } from 'lucide-react';
+import { User, LogOut, Menu } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,16 +32,23 @@ export default function StaffHeader({ username, onLogout, onOpenMobileMenu }: St
           <Menu className="w-6 h-6" />
         </Button>
 
-        <div className="flex items-center gap-2 font-bold text-base md:text-lg">
-          <Shield className="h-6 w-6 text-blue-400" />
-          <span className="hidden sm:inline">Grand Hotel CCTV Portal</span>
+        {/* Branding Hotel dengan Logo.png */}
+        <div className="flex items-center gap-2.5 font-bold text-base md:text-lg">
+          <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-xs border border-slate-700">
+            <img
+              src="/logo.png"
+              alt="Homm Saranam Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <span className="hidden sm:inline">Homm Saranam Baturiti Portal</span>
           <span className="sm:hidden">CCTV Portal</span>
         </div>
       </div>
 
       {/* Profile Avatar Trigger di Kanan Atas */}
       <DropdownMenu>
-        <DropdownMenuTrigger className="outline-none hover:opacity-90 transition p-1 rounded-full focus:ring-2 focus:ring-blue-400">
+        <DropdownMenuTrigger className="outline-none hover:opacity-90 transition p-1 rounded-full focus:ring-2 focus:ring-purple-400">
           <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold shadow-md">
             <User className="w-5 h-5 md:w-6 md:h-6" />
           </div>
@@ -61,11 +68,11 @@ export default function StaffHeader({ username, onLogout, onOpenMobileMenu }: St
                 <span className="font-bold text-sm text-slate-900 truncate">
                   {username || 'Staff Security'}
                 </span>
-                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-[10px] px-2 py-0.5 rounded-full font-semibold border-none">
+                <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-[10px] px-2 py-0.5 rounded-full font-semibold border-none">
                   Staff
                 </Badge>
               </div>
-              <p className="text-xs text-slate-500 truncate">security@grandhotel.com</p>
+              <p className="text-xs text-slate-500 truncate">security@hommsaranam.com</p>
             </div>
           </div>
 

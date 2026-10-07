@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import StaffSidebar from '@/components/StaffSidebar';
 import StaffHeader from '@/components/StaffHeader';
+import Footer from '@/components/Footer';
 import { X } from 'lucide-react';
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
@@ -24,15 +25,15 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row print:bg-white print:block">
       {/* 1. Sidebar Desktop (Layar Sedang & Besar) */}
-      <aside className="hidden md:block w-64 fixed left-0 top-0 bottom-0 z-50">
+      <aside className="hidden md:block w-64 fixed left-0 top-0 bottom-0 z-50 print:hidden">
         <StaffSidebar />
       </aside>
 
       {/* 2. Custom Mobile Drawer (Layar Kecil) */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-50 md:hidden flex print:hidden">
           <div
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsMobileMenuOpen(false)}
@@ -49,17 +50,20 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         </div>
       )}
 
-      {/* 3. Area Konten Utama Staff */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen w-full">
+      {/* 3. Area Konten Utama Staff & Footer */}
+      <div className="flex-1 md:ml-64 print:ml-0 flex flex-col min-h-screen w-full">
         <StaffHeader
           username={username}
           onLogout={handleLogout}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 print:p-0">
           {children}
         </main>
+
+        {/* 4. Footer Staff */}
+        <Footer />
       </div>
     </div>
   );

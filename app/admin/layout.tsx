@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import AdminHeader from '@/components/AdminHeader';
+import Footer from '@/components/Footer';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -37,7 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </SheetContent>
       </Sheet>
 
-      {/* 3. Area Konten Utama (Margin dikosongkan md:ml-0 saat diprint) */}
+      {/* 3. Area Konten Utama & Footer */}
       <div className="flex-1 md:ml-64 print:ml-0 flex flex-col min-h-screen w-full">
         <AdminHeader
           username={username}
@@ -48,6 +49,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main className="flex-1 p-4 md:p-8 print:p-0">
           {children}
         </main>
+
+        {/* 4. Footer Admin (Disembunyikan saat mode cetak) */}
+        <Footer />
       </div>
     </div>
   );
